@@ -1,21 +1,11 @@
-const Redis = require('ioredis');
-const redis = new Redis();
-
 const Reward = require("../models/Reward");
 const User = require("../models/User");
 
 exports.getReferrals = async (req, res) => {
     try {
         const userId = req.userId; // Extract from JWT token
-        const cacheKey = `referrals:${userId}`;
 
-        // Check Redis cache first
-        const cachedData = await redis.get(cacheKey);
-        if (cachedData) {
-            return res.json(JSON.parse(cachedData));
-        }
 
-        // If not cached, fetch from DB
         const user = await User.findById(userId).select('successfulReferrals');
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
@@ -36,9 +26,6 @@ exports.getReferrals = async (req, res) => {
             }))
         };
 
-        // Store in Redis (expire after 10 minutes)
-        await redis.set(cacheKey, JSON.stringify(referrals), 'EX', 600);
-
         res.status(200).json(referrals);
 
     } catch (error) {
@@ -49,15 +36,7 @@ exports.getReferrals = async (req, res) => {
 exports.getReferralStats = async (req, res) => {
     try {
         const userId = req.userId; // Extract from JWT token
-        const cacheKey = `referralStats:${userId}`;
 
-        // Check Redis cache first
-        const cachedData = await redis.get(cacheKey);
-        if (cachedData) {
-            return res.json(JSON.parse(cachedData));
-        }
-
-        // If not cached, fetch from DB
         const user = await User.findById(userId).select('successfulReferrals');
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
@@ -69,9 +48,6 @@ exports.getReferralStats = async (req, res) => {
             totalReferrals: user.successfulReferrals,
             totalRewards: rewards.reduce((total, reward) => total + reward.points, 0)
         };
-
-        //Store in Redis (expire after 10 minutes)
-        await redis.set(cacheKey, JSON.stringify(referralStats), 'EX', 600);
 
         res.status(200).json(referralStats);
 
